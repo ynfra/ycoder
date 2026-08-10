@@ -22,9 +22,15 @@ if [ ! -f ~/.init_done ]; then
   touch ~/.init_done
 fi
 
-# Trust git.nx1.vpn host key.
+# bare_host URL → hostname (strips scheme and any trailing path).
+bare_host() { h=${1#*://}; printf '%s' "${h%%/*}"; }
+
+# Trust the GitLab host key. `|| true` is load-bearing: the host may be
+# unresolvable (VPN down), and `set -e` would kill the whole startup.
 mkdir -p ~/.ssh
-ssh-keyscan -H git.nx1.vpn >>~/.ssh/known_hosts 2>/dev/null
+if [ -n "${GITLAB_HOST:-}" ]; then
+  ssh-keyscan "$(bare_host "$GITLAB_HOST")" >>~/.ssh/known_hosts 2>/dev/null || true
+fi
 
 # Disable code-server workspace trust prompt.
 mkdir -p ~/.local/share/code-server/User
@@ -170,10 +176,9 @@ sudo chmod +x /usr/local/bin/xclaude
 log "Starting opencode server on :4096"
 opencode-ctl start || true
 
-# glab auth — strip scheme/path from GITLAB_HOST (glab wants a bare hostname).
+# glab auth — glab wants a bare hostname, not a URL.
 if command -v glab >/dev/null 2>&1 && [ -n "${GITLAB_TOKEN:-}" ] && [ -n "${GITLAB_HOST:-}" ]; then
-  gl_host=${GITLAB_HOST#*://}
-  gl_host=${gl_host%%/*}
+  gl_host=$(bare_host "$GITLAB_HOST")
   log "Authenticating glab with $gl_host"
   if printf '%s' "$GITLAB_TOKEN" | glab auth login --hostname "$gl_host" --stdin; then
     ok "glab authenticated ($gl_host)"
