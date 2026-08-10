@@ -514,7 +514,7 @@ resource "docker_network" "private" {
   name = "coder-${local.workspace_id}"
 }
 
-resource "docker_volume" "home_volume" {
+resource "docker_volume" "home" {
   name = "coder-${local.workspace_id}-home"
   lifecycle {
     ignore_changes = all
@@ -586,7 +586,7 @@ resource "docker_container" "dind" {
   }
   volumes {
     container_path = "/home/coder"
-    volume_name    = docker_volume.home_volume.name
+    volume_name    = docker_volume.home.name
     read_only      = false
   }
 
@@ -623,7 +623,7 @@ resource "docker_container" "workspace" {
 
   volumes {
     container_path = "/home/coder"
-    volume_name    = docker_volume.home_volume.name
+    volume_name    = docker_volume.home.name
     read_only      = false
   }
   volumes {
