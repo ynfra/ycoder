@@ -1,24 +1,25 @@
 #!/usr/bin/env bash
 # Coder template tooling.
-# Version: 2026-08-10-v4
+# Version: 2026-08-10-v5
 #
 #   ./ycoder.sh sync     [template...]     vendor vibestack/* into template folders
 #   ./ycoder.sh create   <template>        scaffold custom.tf + startup.custom.sh
 #   ./ycoder.sh validate [template...]     terraform validate, in a temp dir
 #   ./ycoder.sh push     <template> [args] sync, then push (make push if present)
-#   ./ycoder.sh download                   fetch latest ycoder.sh + vibestack into CWD
+#   ./ycoder.sh download                   fetch latest ycoder.sh + vibestack next to this script
 #   ./ycoder.sh version                    print script version
 #
 # Symlinked .tf files are silently dropped from the upload, so vibestack/ is
 # copied into each template folder rather than referenced.
 set -euo pipefail
 
-VERSION=2026-08-10-v4
+VERSION=2026-08-10-v5
 REPO=${YCODER_REPO:-ynfra/ycoder}
 REF=${YCODER_REF:-master}
 
-invoke_cwd=$PWD
+# All commands act in the folder that holds this script (not the caller CWD).
 cd "$(dirname "$0")"
+script_dir=$PWD
 
 src=vibestack
 
@@ -141,11 +142,11 @@ cmd_validate() {
   done
 }
 
-# Pull the latest ycoder.sh and vibestack/ from GitHub into the caller's CWD.
+# Pull the latest ycoder.sh and vibestack/ next to this script (self-update).
 cmd_download() {
   command -v gh >/dev/null || { echo "gh (GitHub CLI) is required for download" >&2; exit 1; }
 
-  local dest=$invoke_cwd
+  local dest=$script_dir
   local tmp
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
@@ -164,8 +165,10 @@ cmd_download() {
 
   local remote_ver
   remote_ver=$(grep -E '^VERSION=' "$tmp/ycoder.sh" | head -1 | cut -d= -f2)
-  cp "$tmp/ycoder.sh" "$dest/ycoder.sh"
-  chmod +x "$dest/ycoder.sh"
+  # Atomic replace so this running script updates itself safely.
+  cp "$tmp/ycoder.sh" "$dest/ycoder.sh.new"
+  chmod +x "$dest/ycoder.sh.new"
+  mv "$dest/ycoder.sh.new" "$dest/ycoder.sh"
   echo "▸ ycoder.sh -> $dest/ycoder.sh (${remote_ver:-unknown})"
 
   # Preserve a local .env if present.
