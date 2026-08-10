@@ -125,14 +125,16 @@ file. Make the token at the `<your-coder-url>/cli-auth` page.
 ## Use ycoder in your repository
 
 You can copy `ycoder.sh` into the repository that holds your templates. The
-`download` command gets the newest script **and** the newest `vibestack/` folder
-from GitHub. It writes them into your current folder.
+`download` command replaces this script **and** the `vibestack/` folder with the
+newest copies from GitHub. It writes both files next to `ycoder.sh`, not into
+your current folder. Therefore `../ycoder.sh download` from a template folder
+still updates the correct files.
 
 ```bash
 cd /path/to/your-templates-repo
 curl -fsSL https://raw.githubusercontent.com/ynfra/ycoder/master/ycoder.sh -o ycoder.sh
 chmod +x ycoder.sh
-./ycoder.sh download        # Gets ycoder.sh and vibestack/ into this folder
+./ycoder.sh download        # Replaces ycoder.sh and vibestack/ next to the script
 ```
 
 The subsequent procedure is the same as in this repository:
@@ -145,13 +147,14 @@ cp myapp/.env.example myapp/.env && $EDITOR myapp/.env
 ./ycoder.sh push myapp
 ```
 
-To get subsequent changes to vibestack, run `./ycoder.sh download` and then
-`./ycoder.sh sync`.
+To get subsequent changes, run `./ycoder.sh download` and then `./ycoder.sh
+sync`. The download step updates `ycoder.sh` itself.
 
-**Caution:** The `download` command replaces the full `vibestack/` folder. It
-keeps only the `vibestack/.env` file. Therefore you must not change your copy of
-vibestack. Keep your changes in `custom.tf` and `startup.custom.sh`. If you must
-change the source, do not use the `download` command again.
+**Caution:** The `download` command replaces `ycoder.sh` and the full
+`vibestack/` folder. It keeps only the `vibestack/.env` file. Therefore you must
+not change your copy of vibestack. Keep your changes in `custom.tf` and
+`startup.custom.sh`. If you must change the source, do not use the `download`
+command again.
 
 The `download` command needs the [GitHub CLI](https://cli.github.com) (`gh`) in
 your `PATH`. Two variables control the source: `YCODER_REPO` (the default value
