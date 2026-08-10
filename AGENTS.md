@@ -80,8 +80,9 @@ of the workspace fails. The push does not fail.
 - **Change `local.template_version` in `vibestack/main.tf` to pull the image
   again.** Use the `YYYY-MM-DD-vN` format. Write the same value in the
   `Version:` line of `vibestack/README.md`.
-- **The `download` command replaces the full `vibestack/` folder.** It keeps
-  only the `vibestack/.env` file. Do not keep local changes in `vibestack/` in a
+- **The `download` command replaces `ycoder.sh` and the full `vibestack/`
+  folder.** It writes both next to the script. It keeps only the
+  `vibestack/.env` file. Do not keep local changes in `vibestack/` in a
   repository that uses the `download` command.
 - **Put secret values in `.env`. Do not put them in a `.tf` file or in a
   document.** Each secret variable has the default value `""`. The template
