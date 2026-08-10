@@ -2,189 +2,212 @@
 
 > Version: 2026-08-09-v1
 
-General-purpose Coder workspace: **VS Code in the browser** (code-server), a
-background **opencode** server, and **nested Docker** so you can
-`docker compose up` any stack right inside the workspace.
+Vibestack is a general-purpose Coder workspace template. It gives you three
+things:
 
-It serves two roles:
+- **code-server**. This is VS Code in the browser.
+- **opencode**. This is an AI coding server. It runs in the background.
+- **Docker in Docker**. You can run `docker compose up` in the workspace.
 
-- **Standalone template** — push it as-is for a general dev workspace.
-- **Shared foundation** — every other sibling folder is a template; optional
-  `custom.tf` / `startup.custom.sh` add on top of the synced vibestack files.
+Vibestack has two functions:
 
-`vibestack/` is **not** a Terraform module. `../ycoder.sh sync` copies its
-`main.tf`, `startup.sh`, `Makefile`, `.env.example`, and `README.md` into each
-template folder. Optional `custom.tf` / `startup.custom.sh` in a template stay
-local and merge with the synced root config. Symlinked `.tf` files are silently
-dropped from the template upload, which is why the files are vendored rather
-than referenced. The synced `Makefile` rewrites the push name to the template
-folder.
+- It is a template. You can push it without changes.
+- It is the source for all other templates. Each other folder is a template. A
+  template can add a `custom.tf` file and a `startup.custom.sh` file.
+
+Vibestack is not a Terraform module. The `../ycoder.sh sync` command copies
+five files into each template folder: `main.tf`, `startup.sh`, `Makefile`,
+`.env.example` and `README.md`. Coder removes symbolic links to `.tf` files
+from the upload. Therefore the command copies the files. It does not make
+links. The command also writes the template folder name into the copied
+`Makefile`. The `custom.tf` file and the `startup.custom.sh` file stay in the
+template. Terraform reads them together with the copied `main.tf`.
 
 ## Files
 
-| File                | Purpose                                                     |
-| ------------------- | ----------------------------------------------------------- |
-| `main.tf`           | Terraform: containers, volumes, agent, apps, env, variables |
-| `startup.sh`        | Shared half of the agent startup script                     |
-| `.env.example`      | Template variables to copy to `.env` before pushing         |
-| `Makefile`          | `make push` — loads `.env` and passes `--variable` flags    |
-| `README.md`         | This document                                               |
+| File           | Purpose                                                     |
+| -------------- | ----------------------------------------------------------- |
+| `main.tf`      | Terraform: containers, volumes, agent, apps, env, variables |
+| `startup.sh`   | The shared part of the agent startup script                 |
+| `.env.example` | Template variables. Copy to `.env` before you push          |
+| `Makefile`     | `make push` reads `.env` and sends `--variable` flags       |
+| `README.md`    | This document                                               |
 
 ## Containers
 
-- `coder-<owner>-<workspace>` — dev workspace (`dockette/coder:fx`).
-- `coder-<owner>-<workspace>-dind` — privileged `dockerd` sidecar (`docker:dind`).
+The template makes two containers:
 
-They share `/home/coder` (volume `coder-<workspace_id>-home`); the dind volume
-persists `/var/lib/docker` across restarts. The workspace joins the sidecar's
-network namespace (`network_mode = "container:…"`), so compose-published ports
-are reachable on `localhost` and Coder's port detection sees them.
+- `coder-<owner>-<workspace>` is the workspace. It uses the `dockette/coder:fx`
+  image.
+- `coder-<owner>-<workspace>-dind` is the Docker daemon. It uses the
+  `docker:dind` image. It is privileged.
 
-That shared namespace is also why the workspace container sets no `hostname`
-and no host-to-IP mapping — Docker rejects both alongside `network_mode`.
+The two containers share `/home/coder`. The volume name is
+`coder-<workspace_id>-home`. A second volume keeps `/var/lib/docker`. Therefore
+Docker data stays after a restart.
+
+The workspace container joins the network of the dind container. The setting is
+`network_mode = "container:…"`. This gives three results:
+
+- Compose publishes its ports on `localhost`.
+- Coder finds these ports.
+- The workspace container must not set `hostname` or a host-to-IP map. Docker
+  rejects these two settings when `network_mode` is set.
 
 ## Apps
 
-| App         | URL      | Order | Notes                                   |
-| ----------- | -------- | ----- | --------------------------------------- |
-| code-server | `:13337` | 1     | opens `/home/coder`                     |
-| opencode    | `:4096`  | 2     | headless `opencode serve`, bound to `~` |
+| App         | URL      | Order | Notes                                    |
+| ----------- | -------- | ----- | ---------------------------------------- |
+| code-server | `:13337` | 1     | Opens `/home/coder`                      |
+| opencode    | `:4096`  | 2     | Runs `opencode serve` in `~`             |
 
-Templates add their own apps from `order = 3` upward.
+A template must use `order = 3` or a higher value for its own apps.
 
 ## Opencode
 
-`opencode serve` runs in the background on port `4096`, serving `$HOME`. Manage
-it from any terminal with `opencode-ctl`:
+The `opencode serve` command runs in the background on port `4096`. It serves
+`$HOME`. Use the `opencode-ctl` command in a terminal to control the server:
 
-| Command                | Action                               |
-| ---------------------- | ------------------------------------ |
-| `opencode-ctl status`  | up / down                            |
-| `opencode-ctl start`   | start (idempotent)                   |
-| `opencode-ctl stop`    | stop                                 |
-| `opencode-ctl restart` | restart                              |
-| `opencode-ctl logs`    | follow `~/.cache/opencode/serve.log` |
-| `opencode-ctl help`    | usage                                |
+| Command                | Action                                 |
+| ---------------------- | -------------------------------------- |
+| `opencode-ctl status`  | Shows the server status                |
+| `opencode-ctl start`   | Starts the server                      |
+| `opencode-ctl stop`    | Stops the server                       |
+| `opencode-ctl restart` | Restarts the server                    |
+| `opencode-ctl logs`    | Shows `~/.cache/opencode/serve.log`    |
+| `opencode-ctl help`    | Shows the usage                        |
+
+The `start` command is idempotent. If the server is up, the command does
+nothing.
 
 ## xclaude
 
-`xclaude` runs `claude` against an alternate gateway. Its config is exposed as
-`XCLAUDE_*` env vars (never the real `ANTHROPIC_*`), and the wrapper maps them
-onto `ANTHROPIC_*` only for that one invocation — so your workspace's real
-`ANTHROPIC_*` vars stay untouched:
+The `xclaude` command runs `claude` through a different gateway. The gateway
+configuration is in the `XCLAUDE_*` environment variables. The `xclaude` command
+copies these values into the `ANTHROPIC_*` variables for one call only.
+Therefore the `ANTHROPIC_*` variables of the workspace do not change.
 
 ```bash
-xclaude          # == claude, routed through the XCLAUDE_* gateway
+xclaude          # The same as claude, but through the XCLAUDE_ gateway
 xclaude --help
 ```
 
-`XCLAUDE_MODEL` fills the Sonnet/Opus/subagent slots, `XCLAUDE_SMALL_MODEL` the
-Haiku slot.
+The `XCLAUDE_MODEL` value fills the Sonnet slot, the Opus slot and the subagent
+slot. The `XCLAUDE_SMALL_MODEL` value fills the Haiku slot.
 
-By default `xclaude` runs with `--permission-mode auto`; set
-`xclaude_permission_mode` to `false` to disable it. Set `xclaude_bypass` to
-`true` to run with `--dangerously-skip-permissions` instead (overrides the
-permission mode).
+The `xclaude` command uses `--permission-mode auto` by default. To stop this,
+set `xclaude_permission_mode` to `false`. To use
+`--dangerously-skip-permissions`, set `xclaude_bypass` to `true`. The
+`xclaude_bypass` variable has a higher priority than the
+`xclaude_permission_mode` variable.
 
-It's only wired up when `xclaude_auth_token` is set; otherwise `xclaude` exits
-with a hint. `xclaude_base_url`, `xclaude_model` and `xclaude_small_model` have
-**no defaults** — set them alongside the token.
+You must set `xclaude_auth_token`. If the token is empty, the `xclaude` command
+stops and shows a message. The `xclaude_base_url`, `xclaude_model` and
+`xclaude_small_model` variables have no default values. Set them together with
+the token.
 
 ## AI
 
-`/srv/coder/<owner>/shared/ai` is bind-mounted at `~/.ai`, and select tool files
-are symlinked into it so state persists across the owner's workspaces.
+The host folder `/srv/coder/<owner>/shared/ai` is mounted at `~/.ai`. Startup
+makes symbolic links from the workspace to this folder. Therefore the state
+stays after you delete a workspace, and all workspaces of one owner share it.
 
-**Claude is deliberately not shared** — `~/.claude`, `~/.claude.json`,
-`~/.config/claude` and `~/.local/share/claude` all stay local and plain, with no
-symlinks. **opencode** shares only login and config; its chat sessions database
-(`~/.local/share/opencode/opencode.db`) stays local, so workspaces don't see
-each other's sessions.
+Claude does not share its state. The `~/.claude`, `~/.claude.json`,
+`~/.config/claude` and `~/.local/share/claude` paths stay local. Startup does
+not make links for them.
 
-| Shared path (`~/.ai/…`)         | Workspace path                          | Kind |
+Opencode shares only the login data and the configuration. The session database
+`~/.local/share/opencode/opencode.db` stays local. Therefore one workspace does
+not show the sessions of a different workspace.
+
+| Shared path (`~/.ai/…`)         | Workspace path                          | Type |
 | ------------------------------- | --------------------------------------- | ---- |
-| `config-opencode/opencode.json` | `~/.config/opencode/opencode.json`      | file |
-| `local-opencode/auth.json`      | `~/.local/share/opencode/auth.json`     | file |
-| `local-opencode/mcp-auth.json`  | `~/.local/share/opencode/mcp-auth.json` | file |
-| `docker`                        | `~/.docker`                             | dir  |
+| `config-opencode/opencode.json` | `~/.config/opencode/opencode.json`      | File |
+| `local-opencode/auth.json`      | `~/.local/share/opencode/auth.json`     | File |
+| `local-opencode/mcp-auth.json`  | `~/.local/share/opencode/mcp-auth.json` | File |
+| `docker`                        | `~/.docker`                             | Dir  |
 
-## Open in Coder
+## Git repository
 
-Set the **Git repository** parameter (an SSH URL) when creating the workspace.
-The repo clones into `~/code/<basename>` on first start. Skipped if the folder
-already has content. The clone is best-effort — it logs a warning on failure
-rather than aborting startup.
+Set the **Git repository** parameter when you make a workspace. Use an SSH URL.
+At the first start, startup clones the repository into `~/code/<name>`. If the
+folder has content, startup does not clone. If the clone fails, startup writes a
+warning and continues.
 
-Templates that clone their own repo into `~/code` (via the `git-clone` module)
-simply leave this parameter blank.
+Some templates clone a repository with the `git-clone` module. For these
+templates, keep this parameter empty.
 
 ## Parameters
 
-| Parameter  | Default | Purpose                                             |
-| ---------- | ------- | --------------------------------------------------- |
-| `git_repo` | `""`    | Optional repo to clone into `~/code` on first start |
+| Parameter  | Default | Purpose                                               |
+| ---------- | ------- | ----------------------------------------------------- |
+| `git_repo` | `""`    | The repository to clone into `~/code` at first start  |
 
 ## Template variables
 
-Sensitive, template-wide values set at push time (not per workspace). Each is
-injected only when non-empty, so an unset value won't export an empty variable.
+These variables hold secret values. You set them when you push the template.
+They apply to all workspaces of the template. The template sends a variable to
+the workspace only when the value is not empty. Therefore an empty value does
+not make an empty environment variable.
 
-| Variable                  | Default | Purpose                                                        |
-| ------------------------- | ------- | -------------------------------------------------------------- |
-| `docker_socket`           | `""`    | Optional Docker socket URI for the provider                    |
-| `gitlab_token`            | `""`    | Exposed as `GITLAB_TOKEN` (sensitive)                          |
-| `gitlab_host`             | `""`    | Exposed as `GITLAB_HOST`                                       |
-| `github_token`            | `""`    | Exposed as `GITHUB_TOKEN`, used by the `gh` CLI (sensitive)    |
-| `composer_auth`           | `""`    | Base64 JSON, decoded into `COMPOSER_AUTH` (sensitive)          |
-| `docker_registry_host`    | `""`    | `docker login` host, exposed as `DOCKER_REGISTRY_HOST`         |
-| `docker_registry_user`    | `""`    | `docker login` user, exposed as `DOCKER_REGISTRY_USER`         |
-| `docker_registry_token`   | `""`    | `docker login` password (sensitive); gates all three           |
-| `xclaude_auth_token`      | `""`    | Auth token for the `xclaude` gateway (sensitive); gates all `XCLAUDE_*` |
-| `xclaude_base_url`        | `""`    | Base URL for the `xclaude` gateway                             |
-| `xclaude_model`           | `""`    | Primary model (Sonnet/Opus/subagent slots)                     |
-| `xclaude_small_model`     | `""`    | Small/fast model (Haiku slot)                                  |
-| `xclaude_effort`          | `high`  | Reasoning effort for the `xclaude` gateway                     |
-| `xclaude_permission_mode` | `true`  | Run `xclaude` with `--permission-mode auto`                    |
-| `xclaude_bypass`          | `false` | Run `xclaude` with `--dangerously-skip-permissions`            |
+| Variable                  | Default | Purpose                                                                 |
+| ------------------------- | ------- | ----------------------------------------------------------------------- |
+| `docker_socket`           | `""`    | The Docker socket URI for the provider. Optional                        |
+| `gitlab_token`            | `""`    | Becomes `GITLAB_TOKEN`. Secret                                          |
+| `gitlab_host`             | `""`    | Becomes `GITLAB_HOST`                                                   |
+| `github_token`            | `""`    | Becomes `GITHUB_TOKEN` for the `gh` CLI. Secret                         |
+| `composer_auth`           | `""`    | Base64 JSON. Becomes `COMPOSER_AUTH`. Secret                            |
+| `docker_registry_host`    | `""`    | The `docker login` host. Becomes `DOCKER_REGISTRY_HOST`                 |
+| `docker_registry_user`    | `""`    | The `docker login` user. Becomes `DOCKER_REGISTRY_USER`                 |
+| `docker_registry_token`   | `""`    | The `docker login` password. Secret. Controls all three values          |
+| `xclaude_auth_token`      | `""`    | The token for the `xclaude` gateway. Secret. Controls all `XCLAUDE_*`   |
+| `xclaude_base_url`        | `""`    | The URL of the `xclaude` gateway                                        |
+| `xclaude_model`           | `""`    | The primary model for the Sonnet, Opus and subagent slots               |
+| `xclaude_small_model`     | `""`    | The small model for the Haiku slot                                      |
+| `xclaude_effort`          | `high`  | The reasoning effort for the `xclaude` gateway                          |
+| `xclaude_permission_mode` | `true`  | Runs `xclaude` with `--permission-mode auto`                            |
+| `xclaude_bypass`          | `false` | Runs `xclaude` with `--dangerously-skip-permissions`                    |
 
-`composer_auth` is base64-encoded so the value stays quote-free and survives
-coder's inline `--variable` parser.
+The `composer_auth` value is Base64 text. Base64 removes the quotation marks.
+Therefore the value passes through the `--variable` parser of Coder.
 
-Values come from `<template>/.env` via that template's `Makefile` `push`
-target (see `.env.example`). `../ycoder.sh push` delegates to `make push`
-when present.
+The values come from the `.env` file of the template. The `push` target of the
+`Makefile` reads this file. See `.env.example`. The `../ycoder.sh push` command
+calls `make push` when a `Makefile` is present.
 
 ## Environment
 
-**Container** — set on the workspace container itself:
+**Container.** The template sets these variables on the workspace container:
 
 | Variable            | Value                  | Notes                                     |
 | ------------------- | ---------------------- | ----------------------------------------- |
-| `DOCKER_HOST`       | `tcp://localhost:2375` | Points the Docker CLI at the DIND sidecar |
-| `CODER_AGENT_TOKEN` | _(generated)_          | Injected by the platform                  |
+| `DOCKER_HOST`       | `tcp://localhost:2375` | Sends the Docker CLI to the dind sidecar  |
+| `CODER_AGENT_TOKEN` | *(generated)*          | Coder sets this value                     |
 
-**Git** — per workspace, from the workspace owner:
+**Git.** The template reads these values from the workspace owner:
 
-| Variable              | Value                                                 | Notes                            |
-| --------------------- | ----------------------------------------------------- | -------------------------------- |
-| `GIT_AUTHOR_NAME`     | owner full name (or username)                         | always set                       |
-| `GIT_COMMITTER_NAME`  | owner full name (or username)                         | always set                       |
-| `GIT_AUTHOR_EMAIL`    | owner email                                           | only when the owner has an email |
-| `GIT_COMMITTER_EMAIL` | owner email                                           | only when the owner has an email |
-| `GIT_SSH_COMMAND`     | `coder gitssh -- -o StrictHostKeyChecking=accept-new` | git-over-SSH via the Coder key   |
-| `GIT_REPO`            | the `git_repo` parameter                              | only when the parameter is set   |
+| Variable              | Value                                                 | Notes                             |
+| --------------------- | ----------------------------------------------------- | --------------------------------- |
+| `GIT_AUTHOR_NAME`     | The full name of the owner, or the user name          | Always set                        |
+| `GIT_COMMITTER_NAME`  | The full name of the owner, or the user name          | Always set                        |
+| `GIT_AUTHOR_EMAIL`    | The email of the owner                                | Set only when the owner has one   |
+| `GIT_COMMITTER_EMAIL` | The email of the owner                                | Set only when the owner has one   |
+| `GIT_SSH_COMMAND`     | `coder gitssh -- -o StrictHostKeyChecking=accept-new` | Uses the SSH key of Coder for git |
+| `GIT_REPO`            | The `git_repo` parameter                              | Set only when the parameter is set |
 
-**Forge** — from the sensitive template variables, injected only when set:
+**Forge.** The template sets these variables only when the source variable has
+a value:
 
-| Variable        | Source variable | Notes            |
-| --------------- | --------------- | ---------------- |
-| `GITLAB_TOKEN`  | `gitlab_token`  | used by `glab`   |
-| `GITLAB_HOST`   | `gitlab_host`   | used by `glab`   |
-| `GITHUB_TOKEN`  | `github_token`  | used by `gh`     |
-| `COMPOSER_AUTH` | `composer_auth` | used by Composer |
+| Variable        | Source variable | Used by  |
+| --------------- | --------------- | -------- |
+| `GITLAB_TOKEN`  | `gitlab_token`  | `glab`   |
+| `GITLAB_HOST`   | `gitlab_host`   | `glab`   |
+| `GITHUB_TOKEN`  | `github_token`  | `gh`     |
+| `COMPOSER_AUTH` | `composer_auth` | Composer |
 
-**Docker registry** — injected only when `docker_registry_token` is set; startup
-runs `docker login` with them, writing into the shared `~/.docker`:
+**Docker registry.** The template sets these variables only when
+`docker_registry_token` has a value. Startup runs `docker login` with them and
+writes the result into the shared `~/.docker` folder:
 
 | Variable                | Source variable         |
 | ----------------------- | ----------------------- |
@@ -192,7 +215,8 @@ runs `docker login` with them, writing into the shared `~/.docker`:
 | `DOCKER_REGISTRY_USER`  | `docker_registry_user`  |
 | `DOCKER_REGISTRY_TOKEN` | `docker_registry_token` |
 
-**xclaude** — injected only when `xclaude_auth_token` is set:
+**xclaude.** The template sets these variables only when `xclaude_auth_token`
+has a value:
 
 | Variable                  | Source variable           |
 | ------------------------- | ------------------------- |
@@ -204,7 +228,8 @@ runs `docker login` with them, writing into the shared `~/.docker`:
 | `XCLAUDE_PERMISSION_MODE` | `xclaude_permission_mode` |
 | `XCLAUDE_BYPASS`          | `xclaude_bypass`          |
 
-**opencode** — always set, enabling experimental opencode features:
+**opencode.** The template always sets these variables. They enable
+experimental opencode functions:
 
 | Variable                          | Value  |
 | --------------------------------- | ------ |
@@ -216,59 +241,84 @@ runs `docker login` with them, writing into the shared `~/.docker`:
 
 ## Startup composition
 
-`main.tf` sets the agent's `startup_script` to `startup.sh` +
-`startup.custom.sh` concatenated. The custom half therefore inherits everything
-the base half defines:
+The `main.tf` file makes the `startup_script` of the agent. The script is one
+text: first `startup.sh`, then `startup.custom.sh` of the template. The two
+parts run as one script. Therefore the second part can use all the variables and
+all the functions of the first part:
 
-| Helper          | Use                                                      |
-| --------------- | -------------------------------------------------------- |
-| `log "…"`       | cyan progress line                                        |
-| `ok "…"`        | green success line                                        |
-| `link_file A B` | force `B` into a symlink to shared `A`, adopting existing |
-| `summary_lines` | array of summary rows — append your own                   |
-| `summary`       | print the summary block; call it last                     |
+| Helper          | Use                                                          |
+| --------------- | ------------------------------------------------------------ |
+| `log "…"`       | Writes a cyan progress line                                  |
+| `ok "…"`        | Writes a green success line                                  |
+| `link_file A B` | Makes `B` a symbolic link to the shared file `A`             |
+| `summary_lines` | The array of summary lines. Add your lines to it             |
+| `summary`       | Writes the summary block. Call this function last            |
 
-A template's `startup.custom.sh` sets `WORKSPACE_LABEL`, does its own setup,
-appends to `summary_lines`, and calls `summary` last.
+Write a `startup.custom.sh` file with these steps:
 
-It is **optional**: `main.tf` uses `fileexists()`, and a template without one
-gets a bare `summary` call appended instead — which is why standalone vibestack
-has no `startup.custom.sh`. Note the concatenation happens in Terraform, at plan
-time: `startup_script` is a string, so the custom file is never uploaded to the
-workspace and `startup.sh` cannot look for it at runtime.
+1. Set `WORKSPACE_LABEL`.
+2. Do the setup of the template.
+3. Add your lines to `summary_lines`.
+4. Call `summary` as the last command.
 
-`main.tf` also ships a `welcome` script that seeds `~/code/README.md` — it exits
-early when `~/code` is a git checkout or already has content, so templates that
-clone a repo there are unaffected.
+The `startup.custom.sh` file is optional. The `main.tf` file uses `fileexists()`
+to find it. If the file is not present, `main.tf` adds only a `summary` call.
+Vibestack has no `startup.custom.sh` file for this reason.
 
-## Agent guide
+Terraform joins the two parts when it makes the plan. Therefore Coder does not
+upload the `startup.custom.sh` file to the workspace. The `startup.sh` script
+cannot find this file when it runs.
 
-Startup writes `~/AGENTS.md` (rewritten every start — template-owned) listing
-the preinstalled runtimes and the `opencode-ctl` / `glab` / `gh` /
-`agent-browser` / `coder` CLIs. `~/CLAUDE.md` is seeded once with `@AGENTS.md`
-so it points at the same guide, and is never overwritten afterwards.
+The `main.tf` file also has a `welcome` script. This script writes
+`~/code/README.md`. The script stops if `~/code` is a git clone, or if `~/code`
+has content. Therefore the script does not change a repository.
 
-## Deployment
+## Agents
 
-Copy `.env.example` to `.env`, fill in the tokens, then from `ycoder/`:
+Startup writes two files in `$HOME` for the AI coding agents:
 
-```bash
-./ycoder.sh push vibestack
-```
-
-`push` runs `make push`, which passes every non-empty `.env` value as a
-`--variable`. Since vibestack is the sync source, pushing it needs no sync step.
+- `~/AGENTS.md` is the guide to the workspace. It lists the installed runtimes
+  and these CLI tools: `opencode-ctl`, `glab`, `gh`, `agent-browser` and
+  `coder`. The template owns this file. Startup writes it again at each start.
+  Do not keep your changes in this file.
+- `~/CLAUDE.md` contains `@AGENTS.md`. Startup writes this file one time only.
+  Therefore Claude reads the same guide, and your changes to this file stay
+  after a restart.
 
 ## Image
 
-`dockette/coder:fx` is re-pulled when the registry digest changes **or** when
-`local.template_version` is bumped. Keep that value in `YYYY-MM-DD-vN` form and
-mirror it in the `Version:` line at the top of this file.
+Terraform pulls the `dockette/coder:fx` image again in two conditions:
 
-## Host prerequisites
+- The digest in the registry changes.
+- The `local.template_version` value changes.
 
-Both fail at workspace **build** time, not push time:
+Use the `YYYY-MM-DD-vN` format for `local.template_version`. Write the same
+value in the `Version:` line at the top of this document.
 
-- **Privileged containers** must be allowed on the Coder host (the DIND sidecar).
-- **`/srv/coder/<owner>/shared/ai`** must exist or be creatable. Docker creates
-  it root-owned; startup runs `sudo chown coder:coder` to fix it.
+## Host
+
+The Coder host must obey two conditions. If it does not, the **build** of the
+workspace fails. The push does not fail.
+
+- The host must permit privileged containers, because of the dind sidecar.
+- The `/srv/coder/<owner>/shared/ai` folder must be present, or Docker must be
+  able to make it. Docker makes the folder with the root owner. Startup then
+  runs `sudo chown coder:coder` on it.
+
+## Deployment
+
+1. Copy `.env.example` to `.env`.
+2. Write your secret values in `.env`.
+3. Push the template from the templates folder:
+
+```bash
+./ycoder.sh push <template>
+```
+
+The `push` command first copies the vibestack files into the template. It then
+runs the `make push` target. This target sends each value from `.env` as a
+`--variable` flag. When you push `vibestack`, the command does not copy the
+files, because vibestack is the source.
+
+The `coder` CLI reads the `CODER_URL` and `CODER_SESSION_TOKEN` variables. See
+the `.envrc` file in the templates folder.
