@@ -1,6 +1,6 @@
 # Vibestack
 
-> Version: 2026-08-09-v1
+> Version: 2026-08-11-v1
 
 Vibestack is a general-purpose Coder workspace template. It gives you three
 things:
