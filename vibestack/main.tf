@@ -35,7 +35,7 @@ terraform {
 
 locals {
   # YYYY-MM-DD-vN; bump to force an image re-pull.
-  template_version = "2026-08-09-v1"
+  template_version = "2026-08-11-v1"
 
   image = "dockette/coder:fx"
 
