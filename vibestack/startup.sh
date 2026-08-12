@@ -53,14 +53,16 @@ for d in ~/.config/opencode ~/.local/share/opencode; do
 done
 mkdir -p ~/.config/opencode ~/.local/share/opencode
 
-# link_file SRC DST: symlink DST→SRC; adopt existing DST into SRC if SRC missing.
+# link_file SRC DST [SEED]: symlink DST→SRC; adopt existing DST into SRC if SRC
+# missing; write SEED through the link if neither file exists.
 link_file() {
   if [ ! -e "$1" ] && [ -f "$2" ] && [ ! -L "$2" ]; then mv "$2" "$1"; fi
   ln -sfn "$1" "$2"
+  if [ ! -e "$2" ] && [ -n "${3:-}" ]; then printf '%s\n' "$3" >"$2"; fi
 }
-link_file ~/.ai/config-opencode/opencode.json ~/.config/opencode/opencode.json
-link_file ~/.ai/local-opencode/auth.json ~/.local/share/opencode/auth.json
-link_file ~/.ai/local-opencode/mcp-auth.json ~/.local/share/opencode/mcp-auth.json
+link_file ~/.ai/config-opencode/opencode.json ~/.config/opencode/opencode.json '{ "$schema": "https://opencode.ai/config.json" }'
+link_file ~/.ai/local-opencode/auth.json ~/.local/share/opencode/auth.json '{}'
+link_file ~/.ai/local-opencode/mcp-auth.json ~/.local/share/opencode/mcp-auth.json '{}'
 
 # link SRC DST: symlink only if DST does not exist.
 link() { [ -e "$2" ] || [ -L "$2" ] || ln -sfn "$1" "$2"; }
