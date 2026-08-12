@@ -65,6 +65,8 @@ The root `AGENTS.md` of the monorepo holds the rules for the split.
 
 ## Conventions
 
+Run `./ycoder.sh agent` for these rules and the file map in one output.
+
 - **Change the files in `vibestack/`.** Then run `./ycoder.sh sync`.
 - **Do not change a generated file.** Each one has a banner. The next `sync`
   command removes your change.
@@ -74,6 +76,8 @@ The root `AGENTS.md` of the monorepo holds the rules for the split.
   to a `.tf` file from an upload.
 - **Put your changes in `custom.tf` or `startup.custom.sh`.** The two files are
   optional. `sync` does not change them.
+- **Read `CUSTOM.md` in a template folder first.** `create` writes it. It holds
+  the rules of that folder for an AI agent.
 - **Put a secret value in `.env`.** Do not put it in a `.tf` file. Do not put it
   in a document.
 - **Run `./ycoder.sh validate <template>` before each push.**

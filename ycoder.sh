@@ -3,10 +3,11 @@
 # Version: 2026-08-10-v5
 #
 #   ./ycoder.sh sync     [template...]     vendor vibestack/* into template folders
-#   ./ycoder.sh create   <template>        scaffold custom.tf + startup.custom.sh
+#   ./ycoder.sh create   <template>        scaffold custom.tf + startup.custom.sh + CUSTOM.md
 #   ./ycoder.sh validate [template...]     terraform validate, in a temp dir
 #   ./ycoder.sh push     <template> [args] sync, then push (make push if present)
 #   ./ycoder.sh download                   fetch latest ycoder.sh + vibestack next to this script
+#   ./ycoder.sh agent                      print the rules for AI agents
 #   ./ycoder.sh version                    print script version
 #
 # Symlinked .tf files are silently dropped from the upload, so vibestack/ is
@@ -54,7 +55,21 @@ render() {
 
   { banner "$src/.env.example"; echo; cat "$src/.env.example"; } >"$1/.env.example"
 
-  { md_banner "$src/README.md"; echo; cat "$src/README.md"; } >"$1/README.md"
+  # Keep the frontmatter first so Coder reads it. The banner goes after it.
+  # The name lines get the template folder name.
+  if head -1 "$src/README.md" | grep -q '^---$'; then
+    local fm_end
+    fm_end=$(awk 'NR > 1 && /^---$/ { print NR; exit }' "$src/README.md")
+    {
+      head -n "$fm_end" "$src/README.md" |
+        sed -e "s/^name: .*/name: ${name}/" -e "s/^display_name: .*/display_name: ${name}/"
+      echo
+      md_banner "$src/README.md"
+      tail -n +$((fm_end + 1)) "$src/README.md" | sed "s/^# Vibestack$/# ${name}/"
+    } >"$1/README.md"
+  else
+    { md_banner "$src/README.md"; echo; cat "$src/README.md"; } >"$1/README.md"
+  fi
 }
 
 is_template() {
@@ -99,8 +114,43 @@ summary
 EOF
   chmod +x "$t/startup.custom.sh"
 
+  # CUSTOM.md — the rules of this folder for AI agents and for people.
+  sed "s/{{name}}/${t}/g" >"$t/CUSTOM.md" <<'MD'
+# {{name}} — notes for AI agents
+
+This folder is a Coder template. Read `README.md` for the workspace itself. Run
+`../ycoder.sh agent` for the rules of the tool.
+
+## Change these files
+
+| File                | What goes in it                        |
+| ------------------- | -------------------------------------- |
+| `custom.tf`         | More Terraform: apps, volumes, modules |
+| `startup.custom.sh` | More startup steps                     |
+| `CUSTOM.md`         | Your notes about this template         |
+| `.env`              | Secret values. Git ignores this file   |
+
+## Do not change these files
+
+`main.tf`, `startup.sh`, `Makefile`, `.env.example` and `README.md` come from
+`vibestack/`. Every file has a banner. The next `./ycoder.sh sync` removes your
+changes. Change the file in `vibestack/` instead.
+
+## Rules
+
+- Terraform reads `custom.tf` together with `main.tf`. Do not repeat a block
+  from `main.tf`.
+- Give your apps `order = 3` or more. code-server uses 1. opencode uses 2.
+- `startup.custom.sh` runs after `startup.sh`. It can use `log`, `ok`,
+  `link_file`, `summary_lines` and `summary`. Set `WORKSPACE_LABEL` first. Call
+  `summary` last.
+- Put secret values in `.env`. Never put them in a `.tf` file or in a document.
+- Run `../ycoder.sh validate {{name}}` before every push.
+- Push with `../ycoder.sh push {{name}}`.
+MD
+
   render "$t"
-  echo "▸ created $t (custom.tf, startup.custom.sh, synced from $src)"
+  echo "▸ created $t (custom.tf, startup.custom.sh, CUSTOM.md, synced from $src)"
 }
 
 cmd_sync() {
@@ -190,9 +240,70 @@ cmd_download() {
   echo "▸ vibestack/ -> $dest/vibestack"
 }
 
+usage() {
+  cat <<'USAGE'
+usage: ./ycoder.sh sync     [template...]   Copy the vibestack files into templates
+       ./ycoder.sh create   <template>      Make a new template
+       ./ycoder.sh validate [template...]   Run terraform validate in a temp folder
+       ./ycoder.sh push     <template>      Sync, then push to Coder
+       ./ycoder.sh download                 Get the newest ycoder.sh and vibestack
+       ./ycoder.sh agent                    Show the rules for AI agents
+       ./ycoder.sh version                  Show the version of the script
+USAGE
+}
+
+# The rules of this folder, for an AI agent that reads the output.
+cmd_agent() {
+  cat <<'AGENT'
+ycoder — rules for AI agents
+
+FILES
+  vibestack/                    The source. Change the files here
+  <template>/main.tf            Generated from vibestack. Do not change
+  <template>/startup.sh         Generated from vibestack. Do not change
+  <template>/Makefile           Generated from vibestack. Do not change
+  <template>/.env.example       Generated from vibestack. Do not change
+  <template>/README.md          Generated from vibestack. Do not change
+  <template>/custom.tf          Yours. More Terraform
+  <template>/startup.custom.sh  Yours. More startup steps
+  <template>/CUSTOM.md          Yours. The rules of that folder
+  <template>/.env               Yours. Secret values. Git ignores this file
+
+RULES
+  1. Change a file in vibestack/. Then run: ./ycoder.sh sync <template>
+  2. Do not change a generated file. Every one has a banner. The next sync
+     removes your change.
+  3. Always give the name of the template. With no name, sync and validate
+     write into every folder.
+  4. Put the changes of one template in custom.tf or startup.custom.sh.
+  5. Terraform reads custom.tf together with main.tf as one plan.
+  6. Give your apps order = 3 or more. code-server uses 1. opencode uses 2.
+  7. startup.custom.sh runs after startup.sh. Use the helpers log, ok,
+     link_file, summary_lines and summary. Set WORKSPACE_LABEL first. Call
+     summary last.
+  8. Put a secret value in .env. Never in a .tf file or in a document.
+  9. Run ./ycoder.sh validate <template> before every push.
+ 10. The docker/, mux/ and ohmyfelix/ folders are old templates. They have
+     their own main.tf. Do not sync or push them with this tool.
+
+READ
+  AGENTS.md              The conventions of this folder
+  README.md              The tool and the procedure
+  vibestack/README.md    The workspace: apps, variables, startup
+  <template>/CUSTOM.md   The rules of one template
+AGENT
+}
+
 case "${1:-}" in
   version|--version|-V)
     echo "$VERSION"
+    ;;
+  agent)
+    cmd_agent
+    ;;
+  help|--help|-h)
+    echo "ycoder.sh $VERSION"
+    usage
     ;;
   sync)
     shift
@@ -235,12 +346,7 @@ case "${1:-}" in
     ;;
   *)
     echo "ycoder.sh $VERSION" >&2
-    echo "usage: ./ycoder.sh sync     [template...]" >&2
-    echo "       ./ycoder.sh create   <template>" >&2
-    echo "       ./ycoder.sh validate [template...]" >&2
-    echo "       ./ycoder.sh push     <template> [args...]" >&2
-    echo "       ./ycoder.sh download" >&2
-    echo "       ./ycoder.sh version" >&2
+    usage >&2
     exit 1
     ;;
 esac
