@@ -1,48 +1,44 @@
 ---
 name: ohmyfelix
 display_name: OhMyFelix
-description: Felix's personalized Docker workspace with Node.js, PHP, Deno, Bun, and AI coding tools
+description: Felix's Docker workspace with code-server and a home folder on the host
 icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/docker.svg
 maintainer_github: f3l1x
 tags: [docker, container]
 ---
 
-# Remote Development on Docker Containers
+# OhMyFelix
 
-Provision Docker containers as [Coder workspaces](https://coder.com/docs/workspaces) with this example template.
+A Coder workspace in a Docker container. You get **code-server**, VS Code in
+your browser. Open it from the Coder dashboard.
 
-<!-- TODO: Add screenshot -->
+The image is `dockette/coder:fx`. It has PHP, Composer, Node, Bun, Deno, Python
+and Go.
 
-## Prerequisites
+## Home folder
 
-### Infrastructure
+Your home folder is the host folder `/srv/coder/ohmyfelix`. It is not a Docker
+volume.
 
-The VM you run Coder on must have a running Docker socket and the `coder` user must be added to the Docker group:
+**Caution:** Every workspace of this template uses the same host folder. Two
+workspaces write the same files.
 
-```sh
-# Add coder user to Docker group
-sudo adduser coder docker
+The folder must be on the host. Files outside the home folder go away after a
+restart.
 
-# Restart Coder server
-sudo systemctl restart coder
+Coder also sets your name and your email for git commits.
 
-# Test Docker
-sudo -u coder docker ps
+## Variables
+
+| Variable        | Default | What it does          |
+| --------------- | ------- | --------------------- |
+| `docker_socket` | `""`    | The Docker socket URI |
+
+## How to push
+
+**Caution:** This template has its own `main.tf`. Do not run `./ycoder.sh sync`
+or `./ycoder.sh push` on it. Both commands copy the vibestack files over it.
+
+```bash
+coder templates push ohmyfelix -d .
 ```
-
-## Architecture
-
-This template provisions the following resources:
-
-- Docker image (built by Docker socket and kept locally)
-- Docker container pod (ephemeral)
-- Docker volume (persistent on `/home/coder`)
-
-This means, when the workspace restarts, any tools or files outside of the home directory are not persisted. To pre-bake tools into the workspace (e.g. `python3`), modify the container image. Alternatively, individual developers can [personalize](https://coder.com/docs/dotfiles) their workspaces with dotfiles.
-
-> **Note**
-> This template is designed to be a starting point! Edit the Terraform to extend the template to support your use case.
-
-### Editing the image
-
-Edit the `Dockerfile` and run `coder templates push` to update workspaces.
