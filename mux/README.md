@@ -1,48 +1,40 @@
 ---
-display_name: Docker Containers
-description: Provision Docker containers as Coder workspaces
-icon: ../../../site/static/icon/docker.png
-maintainer_github: coder
-verified: true
-tags: [docker, container]
+name: mux
+display_name: Mux
+description: A Node workspace with code-server and the Mux app
+icon: /icon/terminal.svg
+maintainer_github: f3l1x
+tags: [docker, container, node]
 ---
 
-# Remote Development on Docker Containers
+# Mux
 
-Provision Docker containers as [Coder workspaces](https://coder.com/docs/workspaces) with this example template.
+A Coder workspace in a Docker container. You get two apps. Open them from the
+Coder dashboard.
 
-<!-- TODO: Add screenshot -->
+- **code-server** — VS Code in your browser.
+- **Mux** — from the Coder module `coder/mux`, version 1.3.1.
 
-## Prerequisites
+The image is `codercom/enterprise-node:ubuntu`. It has Node.
 
-### Infrastructure
+## Home folder
 
-The VM you run Coder on must have a running Docker socket and the `coder` user must be added to the Docker group:
+Your home folder is a Docker volume. It stays after a restart. Files outside the
+home folder go away. Put new tools in the image.
 
-```sh
-# Add coder user to Docker group
-sudo adduser coder docker
+Coder also sets your name and your email for git commits.
 
-# Restart Coder server
-sudo systemctl restart coder
+## Variables
 
-# Test Docker
-sudo -u coder docker ps
+| Variable        | Default | What it does          |
+| --------------- | ------- | --------------------- |
+| `docker_socket` | `""`    | The Docker socket URI |
+
+## How to push
+
+**Caution:** This template has its own `main.tf`. Do not run `./ycoder.sh sync`
+or `./ycoder.sh push` on it. Both commands copy the vibestack files over it.
+
+```bash
+coder templates push mux -d .
 ```
-
-## Architecture
-
-This template provisions the following resources:
-
-- Docker image (built by Docker socket and kept locally)
-- Docker container pod (ephemeral)
-- Docker volume (persistent on `/home/coder`)
-
-This means, when the workspace restarts, any tools or files outside of the home directory are not persisted. To pre-bake tools into the workspace (e.g. `python3`), modify the container image. Alternatively, individual developers can [personalize](https://coder.com/docs/dotfiles) their workspaces with dotfiles.
-
-> **Note**
-> This template is designed to be a starting point! Edit the Terraform to extend the template to support your use case.
-
-### Editing the image
-
-Edit the `Dockerfile` and run `coder templates push` to update workspaces.
