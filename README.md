@@ -63,8 +63,8 @@ YCODER_REPO=myorg/ycoder YCODER_REF=main ./ycoder.sh download
 ./ycoder.sh create myapp
 ```
 
-The command makes the folder. It writes `custom.tf` and `startup.custom.sh`.
-Then it copies the source files in. It stops if the folder exists.
+The command makes the folder. It writes `custom.tf`, `startup.custom.sh` and
+`CUSTOM.md`. Then it copies the source files in. It stops if the folder exists.
 
 ```
 myapp/
@@ -72,6 +72,7 @@ myapp/
 │                      # The tool writes these files. Do not change them
 ├── custom.tf          # Yours. More Terraform
 ├── startup.custom.sh  # Yours. More startup commands
+├── CUSTOM.md          # Yours. The rules of the folder for AI agents
 └── .env               # Yours. Secret values. Git ignores this file
 ```
 
@@ -89,7 +90,10 @@ your apps.
 `WORKSPACE_LABEL`. Do your setup. Add your lines to `summary_lines`. Call
 `summary` last.
 
-The two files are optional. The `sync` command does not change them.
+`CUSTOM.md` holds these rules for an AI agent that opens the folder. Add your
+own notes about the template to it.
+
+The three files are optional. The `sync` command does not change them.
 
 ### Set the secret values
 
@@ -115,8 +119,13 @@ Do not put it in a `.tf` file.
 ./ycoder.sh validate [template...]     # Run terraform validate in a temp folder
 ./ycoder.sh push     <template> [args] # Sync, then push to Coder
 ./ycoder.sh download                   # Get the newest ycoder.sh and vibestack
+./ycoder.sh agent                      # Show the rules for AI agents
+./ycoder.sh help                       # Show the usage
 ./ycoder.sh version                    # Show the version of the script
 ```
+
+`agent` prints the file map and the rules. Give this output to an AI agent, or
+read it yourself.
 
 The script first moves to its own folder. Therefore you can run it from any
 folder. For example, `../ycoder.sh push vibestack` works in a template folder.
