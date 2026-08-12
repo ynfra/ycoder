@@ -67,7 +67,7 @@ link_file ~/.ai/local-opencode/mcp-auth.json ~/.local/share/opencode/mcp-auth.js
 # link SRC DST: symlink only if DST does not exist.
 link() { [ -e "$2" ] || [ -L "$2" ] || ln -sfn "$1" "$2"; }
 link ~/.ai/docker ~/.docker
-ok "opencode login+config shared; sessions local; ~/.claude stays local"
+ok "opencode login and config shared via ~/.ai; sessions local"
 
 mkdir -p ~/code
 
@@ -240,7 +240,6 @@ summary_lines=(
   "                     manage with: opencode-ctl {status|start|stop|restart|logs}"
   "     • Docker (DIND) docker ps / compose work; put projects under ~/code"
   "     • AI state      opencode login+config shared via ~/.ai (sessions local)"
-  "                     ~/.claude is local — not shared, not symlinked"
   "     • Env           OPENCODE_* experimental flags enabled"
 )
 
