@@ -1,3 +1,12 @@
+---
+name: vibestack
+display_name: Vibestack
+description: A Coder workspace with code-server, opencode and Docker in Docker
+icon: /icon/code.svg
+maintainer_github: f3l1x
+tags: [docker, container, ai]
+---
+
 # Vibestack
 
 > Version: 2026-08-11-v1
@@ -108,7 +117,7 @@ Write `startup.custom.sh` like this:
 3. Add lines to `summary_lines`.
 4. Call `summary` last.
 
-The file is optional. Vibestack has none.
+The file is optional. This template has none.
 
 Every start writes `~/AGENTS.md`, the guide for the AI agents. Keep no notes in
 it. The first start writes `~/CLAUDE.md`. Your changes there stay.
