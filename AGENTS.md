@@ -71,7 +71,8 @@ Run `./ycoder.sh agent` for these rules and the file map in one output.
 - **Do not change a generated file.** Each one has a banner. The next `sync`
   command removes your change.
 - **Always give the name of the template.** With no name, `sync` and `validate`
-  read every folder. Therefore they write into the old templates too.
+  act on every managed folder. A managed folder has the banner in its `main.tf`.
+  The tool skips a folder with a hand-written `main.tf`.
 - **Copy the files. Do not make symbolic links.** Coder removes a symbolic link
   to a `.tf` file from an upload.
 - **Put your changes in `custom.tf` or `startup.custom.sh`.** The two files are
