@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Coder template tooling.
-# Version: 2026-08-10-v5
+# Version: 2026-08-12-v6
 #
 #   ./ycoder.sh sync     [template...]     vendor vibestack/* into template folders
 #   ./ycoder.sh create   <template>        scaffold custom.tf + startup.custom.sh + CUSTOM.md
@@ -14,7 +14,7 @@
 # copied into each template folder rather than referenced.
 set -euo pipefail
 
-VERSION=2026-08-10-v5
+VERSION=2026-08-12-v6
 REPO=${YCODER_REPO:-ynfra/ycoder}
 REF=${YCODER_REF:-master}
 
@@ -72,17 +72,29 @@ render() {
   fi
 }
 
-is_template() {
-  [ -d "$1" ] || { echo "$1: not a template (no such directory)" >&2; exit 1; }
+# A folder belongs to this tool when its main.tf carries the generated banner.
+# A folder with a hand-written main.tf is somebody else's template.
+is_managed() {
+  [ -f "$1/main.tf" ] && head -4 "$1/main.tf" | grep -q "^# Generated from $src/main.tf"
 }
 
-# All sibling dirs except the sync source (vibestack).
+is_template() {
+  [ -d "$1" ] || { echo "$1: not a template (no such directory)" >&2; exit 1; }
+  [ "$1" = "$src" ] && return 0
+  is_managed "$1" || {
+    echo "$1: not managed by this tool (main.tf has no banner) — use: ./ycoder.sh create <template>" >&2
+    exit 1
+  }
+}
+
+# All managed sibling dirs except the sync source (vibestack).
 list_templates() {
   local d
   for d in */; do
     d=${d%/}
     [ -d "$d" ] || continue
     [ "$d" = "$src" ] && continue
+    is_managed "$d" || continue
     printf '%s\n' "$d"
   done
 }
@@ -274,7 +286,7 @@ RULES
   2. Do not change a generated file. Every one has a banner. The next sync
      removes your change.
   3. Always give the name of the template. With no name, sync and validate
-     write into every folder.
+     act on every managed folder.
   4. Put the changes of one template in custom.tf or startup.custom.sh.
   5. Terraform reads custom.tf together with main.tf as one plan.
   6. Give your apps order = 3 or more. code-server uses 1. opencode uses 2.
@@ -283,8 +295,8 @@ RULES
      summary last.
   8. Put a secret value in .env. Never in a .tf file or in a document.
   9. Run ./ycoder.sh validate <template> before every push.
- 10. The docker/, mux/ and ohmyfelix/ folders are old templates. They have
-     their own main.tf. Do not sync or push them with this tool.
+ 10. A folder with a hand-written main.tf is not a template of this tool. The
+     tool skips it. Do not sync or push it. Do not change vibestack for it.
 
 READ
   AGENTS.md              The conventions of this folder

@@ -55,7 +55,11 @@ Two variables control the source. `YCODER_REPO` has the default value
 YCODER_REPO=myorg/ycoder YCODER_REF=main ./ycoder.sh download
 ```
 
+
+
 ## Usage
+
+
 
 ### Make a template
 
@@ -75,6 +79,8 @@ myapp/
 ├── CUSTOM.md          # Yours. The rules of the folder for AI agents
 └── .env               # Yours. Secret values. Git ignores this file
 ```
+
+
 
 ### Write your files
 
@@ -111,6 +117,8 @@ Do not put it in a `.tf` file.
 ./ycoder.sh push myapp
 ```
 
+
+
 ## Commands
 
 ```bash
@@ -130,11 +138,12 @@ read it yourself.
 The script first moves to its own folder. Therefore you can run it from any
 folder. For example, `../ycoder.sh push vibestack` works in a template folder.
 
-`sync` and `validate` read every folder when you give no name. They skip
-`vibestack/`.
+`sync` and `validate` act on every managed folder when you give no name. A
+managed folder has the banner in its `main.tf`. The tool skips `vibestack/` and
+every folder with a hand-written `main.tf`.
 
-**Caution:** With no name, `sync` writes into the old templates too. Give the
-name of the template.
+**Caution:** With no name, `sync` writes into each managed folder. Give the name
+of the template.
 
 ### sync
 
@@ -180,9 +189,6 @@ into the templates:
 ./ycoder.sh validate myapp
 ```
 
-Give the name of each template. `AGENTS.md` holds the conventions.
-[vibestack/README.md](vibestack/README.md) tells you how to change the version
+Give the name of each template. `AGENTS.md` holds the conventions.  
+[vibestack/README.md](vibestack/README.md) tells you how to change the version  
 of the image.
-
-The `docker/`, `mux/` and `ohmyfelix/` folders are old templates. Each one has
-its own `main.tf` file. `demo/` is empty.
