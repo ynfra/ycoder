@@ -1,13 +1,15 @@
-## name: vibestack
+---
+name: vibestack
 display_name: Vibestack
 description: A Coder workspace with code-server, opencode and Docker in Docker
 icon: /icon/code.svg
 maintainer_github: f3l1x
 tags: [docker, container, ai]
+---
 
 # Vibestack
 
-> Version: 2026-08-11-v1
+> Version: 2026-08-15-v1
 
 A Coder workspace with three things:
 
