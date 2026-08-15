@@ -92,7 +92,7 @@ for apps, volumes, modules and parameters. Use `order = 3` or a higher value for
 your apps.
 
 `startup.custom.sh` runs after `startup.sh`. Therefore it can use the `log`,
-`ok`, `link_file`, `summary_lines` and `summary` helpers. Set
+`ok`, `link_shared`, `summary_lines` and `summary` helpers. Set
 `WORKSPACE_LABEL`. Do your setup. Add your lines to `summary_lines`. Call
 `summary` last.
 
