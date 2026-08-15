@@ -46,28 +46,40 @@ sudo chown coder:coder /home/coder/.ai 2>/dev/null || true
 log "Linking opencode config into shared ~/.ai"
 mkdir -p ~/.ai/config-opencode ~/.ai/local-opencode ~/.ai/docker
 
-# Share opencode login+config; keep sessions DB local.
-# Replace stale whole-dir symlinks from older templates with real dirs.
+# An old template linked the two parent folders. Remove that link.
 for d in ~/.config/opencode ~/.local/share/opencode; do
   if [ -L "$d" ]; then rm -f "$d"; fi
 done
 mkdir -p ~/.config/opencode ~/.local/share/opencode
 
-# link_file SRC DST [SEED]: symlink DST→SRC; adopt existing DST into SRC if SRC
-# missing; write SEED through the link if neither file exists.
-link_file() {
-  if [ ! -e "$1" ] && [ -f "$2" ] && [ ! -L "$2" ]; then mv "$2" "$1"; fi
-  ln -sfn "$1" "$2"
-  if [ ! -e "$2" ] && [ -n "${3:-}" ]; then printf '%s\n' "$3" >"$2"; fi
-}
-link_file ~/.ai/config-opencode/opencode.json ~/.config/opencode/opencode.json '{ "$schema": "https://opencode.ai/config.json" }'
-link_file ~/.ai/local-opencode/auth.json ~/.local/share/opencode/auth.json '{}'
-link_file ~/.ai/local-opencode/mcp-auth.json ~/.local/share/opencode/mcp-auth.json '{}'
+# Seed the shared entries. The folder names come from
+# https://opencode.ai/docs/config — the sessions database stays local.
+seed() { [ -e "$1" ] || printf '%s\n' "$2" >"$1"; }
+mkdir -p ~/.ai/config-opencode/{agents,commands,modes,plugins,skills,themes,tools}
+seed ~/.ai/config-opencode/opencode.json '{ "$schema": "https://opencode.ai/config.json" }'
+seed ~/.ai/local-opencode/auth.json '{}'
+seed ~/.ai/local-opencode/mcp-auth.json '{}'
 
-# link SRC DST: symlink only if DST does not exist.
-link() { [ -e "$2" ] || [ -L "$2" ] || ln -sfn "$1" "$2"; }
-link ~/.ai/docker ~/.docker
-ok "opencode login and config shared via ~/.ai; sessions local"
+# link_shared SRC DST: link each entry of SRC into DST. The shared folder
+# decides what is shared, so a new entry needs no change here.
+link_shared() {
+  local src dst
+  for src in "$1"/*; do
+    dst="$2/${src##*/}"
+    # A real dst is a local leftover. Keep the files it alone has, then link.
+    if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+      cp -rnT "$dst" "$src"
+      rm -rf "$dst"
+    fi
+    ln -sfn "$src" "$dst"
+  done
+}
+link_shared ~/.ai/config-opencode ~/.config/opencode
+link_shared ~/.ai/local-opencode ~/.local/share/opencode
+
+# Link ~/.docker only if it does not exist.
+[ -e ~/.docker ] || ln -sfn ~/.ai/docker ~/.docker
+ok "opencode login, config and skills shared via ~/.ai; sessions local"
 
 mkdir -p ~/code
 
@@ -239,7 +251,7 @@ summary_lines=(
   "     • opencode      http://localhost:4096"
   "                     manage with: opencode-ctl {status|start|stop|restart|logs}"
   "     • Docker (DIND) docker ps / compose work; put projects under ~/code"
-  "     • AI state      opencode login+config shared via ~/.ai (sessions local)"
+  "     • AI state      opencode login+config+skills shared via ~/.ai (sessions local)"
   "     • Env           OPENCODE_* experimental flags enabled"
 )
 

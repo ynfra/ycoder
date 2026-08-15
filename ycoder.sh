@@ -114,7 +114,7 @@ EOF
 
   cat >"$t/startup.custom.sh" <<EOF
 # ${t} — runs after shared startup.sh (concatenated by main.tf).
-# Helpers available: log, ok, link_file, summary_lines, summary.
+# Helpers available: log, ok, link_shared, summary_lines, summary.
 
 WORKSPACE_LABEL="${t}"
 
@@ -154,7 +154,7 @@ changes. Change the file in `vibestack/` instead.
   from `main.tf`.
 - Give your apps `order = 3` or more. code-server uses 1. opencode uses 2.
 - `startup.custom.sh` runs after `startup.sh`. It can use `log`, `ok`,
-  `link_file`, `summary_lines` and `summary`. Set `WORKSPACE_LABEL` first. Call
+  `link_shared`, `summary_lines` and `summary`. Set `WORKSPACE_LABEL` first. Call
   `summary` last.
 - Put secret values in `.env`. Never put them in a `.tf` file or in a document.
 - Run `../ycoder.sh validate {{name}}` before every push.
@@ -291,7 +291,7 @@ RULES
   5. Terraform reads custom.tf together with main.tf as one plan.
   6. Give your apps order = 3 or more. code-server uses 1. opencode uses 2.
   7. startup.custom.sh runs after startup.sh. Use the helpers log, ok,
-     link_file, summary_lines and summary. Set WORKSPACE_LABEL first. Call
+     link_shared, summary_lines and summary. Set WORKSPACE_LABEL first. Call
      summary last.
   8. Put a secret value in .env. Never in a .tf file or in a document.
   9. Run ./ycoder.sh validate <template> before every push.
